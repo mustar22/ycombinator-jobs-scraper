@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Scraper output + cache
+*.json
+*.csv
+.yc_ats_cache.json
+
+# Claude Code
+.claude/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store

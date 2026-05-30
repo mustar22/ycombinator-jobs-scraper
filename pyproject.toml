@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ycombinator-jobs-scraper"
+version = "0.1.0"
+description = "Scrape jobs from small early-stage Y Combinator startups via their public ATS boards."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "ycombinator-jobs-scraper contributors" }]
+keywords = ["ycombinator", "yc", "jobs", "scraper", "greenhouse", "lever", "ashby", "ats"]
+dependencies = ["requests>=2.25"]
+
+[project.urls]
+Homepage = "https://github.com/yourname/ycombinator-jobs-scraper"
+
+[project.scripts]
+yc-jobs = "ycombinator_jobs_scraper.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[tool.setuptools]
+packages = ["ycombinator_jobs_scraper"]
