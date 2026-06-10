@@ -1,8 +1,10 @@
 """Orchestration: company source -> filter -> ATS resolve -> normalized jobs."""
+import sys
 from datetime import datetime, timezone
 
 import requests
 
+from . import waas
 from .ats import resolve_company
 from .cache import SlugCache
 from .companies import fetch_companies, filter_companies
@@ -26,6 +28,7 @@ def scrape_yc_jobs(
     max_companies=None,
     source="hiring",
     website_detect=True,
+    waas_descriptions=False,
     delay=0.25,
     cache_path=".yc_ats_cache.json",
     session=None,
@@ -52,10 +55,12 @@ def scrape_yc_jobs(
 
     rows, hits = [], 0
     scraped_at = datetime.now(timezone.utc).isoformat()
+    waas.reset_stats()
     try:
         for i, company in enumerate(companies, 1):
             resolved = resolve_company(
                 session, company, cache=cache, website_detect=website_detect, delay=delay,
+                waas_descriptions=waas_descriptions,
             )
             if not resolved:
                 if progress:
@@ -71,6 +76,10 @@ def scrape_yc_jobs(
     finally:
         if cache is not None:
             cache.save()
+
+    warn = waas.zero_postings_warning()
+    if warn:
+        print(warn, file=sys.stderr)
 
     if keyword:
         k = keyword.lower()

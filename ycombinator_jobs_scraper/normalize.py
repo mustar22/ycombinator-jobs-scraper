@@ -1,11 +1,14 @@
 """Normalize raw ATS job objects into JobSpy-compatible records."""
 import html
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
 _REMOTE_RE = re.compile(r"\bremote\b", re.IGNORECASE)
+_REL_RE = re.compile(r"(\d+)\s*(minute|hour|day|week|month|year)", re.IGNORECASE)
+_UNIT_DAYS = {"minute": 1 / 1440, "hour": 1 / 24, "day": 1, "week": 7,
+              "month": 30.44, "year": 365.25}
 
 
 def strip_html(text):
@@ -78,6 +81,16 @@ def _from_lever(j):
     }
 
 
+def _relative_to_date(value):
+    """WaaS gives rounded relative ages ('5 months'); assume the oldest day meant."""
+    m = _REL_RE.search(str(value or ""))
+    if not m:
+        return None
+    n, unit = int(m.group(1)), m.group(2).lower()
+    days = _UNIT_DAYS[unit] * (n + 1)
+    return (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
+
+
 def _from_ashby(j):
     return {
         "title": j.get("title"),
@@ -90,7 +103,28 @@ def _from_ashby(j):
     }
 
 
-_DISPATCH = {"greenhouse": _from_greenhouse, "lever": _from_lever, "ashby": _from_ashby}
+def _from_waas(j):
+    loc = j.get("location")
+    url = j.get("url")
+    return {
+        "title": j.get("title"),
+        "location": loc,
+        # Public YC page, not the login-walled WaaS apply URL.
+        "job_url": (url if url.startswith("http")
+                    else "https://www.ycombinator.com" + url) if url else None,
+        "job_type": j.get("type"),
+        "is_remote": _infer_remote(loc),
+        "description": j.get("description"),
+        "date_posted": _relative_to_date(j.get("createdAt")),
+        "salary_range": j.get("salaryRange"),
+        "equity_range": j.get("equityRange"),
+        "min_experience": j.get("minExperience"),
+        "visa": j.get("visa"),
+    }
+
+
+_DISPATCH = {"greenhouse": _from_greenhouse, "lever": _from_lever, "ashby": _from_ashby,
+             "waas": _from_waas}
 
 
 def normalize_job(raw, ats, company, ats_slug, scraped_at):

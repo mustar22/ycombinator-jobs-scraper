@@ -6,6 +6,8 @@ from urllib.parse import urljoin
 
 import requests
 
+from .waas import fetch_waas
+
 UA = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"
 
 # Each fetcher returns (list_of_raw_jobs, resolved_slug) or None.
@@ -153,48 +155,59 @@ def detect_ats_from_website(website_url, session=None, follow_careers=True, dela
     return None
 
 
-def resolve_company(session, company, cache=None, website_detect=True, delay=0.25):
+def resolve_company(session, company, cache=None, website_detect=True, delay=0.25,
+                    waas_descriptions=False):
     """Resolve a company to (ats, ats_slug, raw_jobs); cache the slug->ats mapping."""
     slug = company.get("slug")
-    if cache is not None and slug:
-        cached = cache.get(slug)
-        if cached is not None:
-            if not cached.get("ats"):
-                return None
-            fetch = dict(_FETCHERS)[cached["ats"]]
-            jobs = fetch(session, cached["ats_slug"])
-            _polite_sleep(delay)
-            if jobs:
-                return cached["ats"], cached["ats_slug"], jobs
-
-    for variant in slug_variants(company):
-        for ats, fetch in _FETCHERS:
-            try:
-                jobs = fetch(session, variant)
-            except Exception:
-                jobs = None
-            _polite_sleep(delay)
-            if jobs:
-                if cache is not None and slug:
-                    cache.set(slug, ats, variant)
-                return ats, variant, jobs
-
-    # Fallback: only when slug-guessing missed, scrape the website for the real slug.
-    if website_detect:
-        found = detect_ats_from_website(company.get("website"), session=session, delay=delay)
+    cached = cache.get(slug) if cache is not None and slug else None
+    if cached is not None and cached.get("ats"):
+        ats, ats_slug = cached["ats"], cached["ats_slug"]
+        if ats == "waas":
+            jobs = fetch_waas(session, ats_slug, descriptions=waas_descriptions, delay=delay)
+        else:
+            jobs = dict(_FETCHERS)[ats](session, ats_slug)
         _polite_sleep(delay)
-        if found:
-            ats, real_slug = found
-            fetch = dict(_FETCHERS)[ats]
-            try:
-                jobs = fetch(session, real_slug)
-            except Exception:
-                jobs = None
+        if jobs:
+            return ats, ats_slug, jobs
+
+    # Cached misses skip the slow probing and go straight to the WaaS fallback.
+    if cached is None or cached.get("ats"):
+        for variant in slug_variants(company):
+            for ats, fetch in _FETCHERS:
+                try:
+                    jobs = fetch(session, variant)
+                except Exception:
+                    jobs = None
+                _polite_sleep(delay)
+                if jobs:
+                    if cache is not None and slug:
+                        cache.set(slug, ats, variant)
+                    return ats, variant, jobs
+
+        # Only when slug-guessing missed, scrape the website for the real slug.
+        if website_detect:
+            found = detect_ats_from_website(company.get("website"), session=session, delay=delay)
             _polite_sleep(delay)
-            if jobs:
-                if cache is not None and slug:
-                    cache.set(slug, ats, real_slug)
-                return ats, real_slug, jobs
+            if found:
+                ats, real_slug = found
+                fetch = dict(_FETCHERS)[ats]
+                try:
+                    jobs = fetch(session, real_slug)
+                except Exception:
+                    jobs = None
+                _polite_sleep(delay)
+                if jobs:
+                    if cache is not None and slug:
+                        cache.set(slug, ats, real_slug)
+                    return ats, real_slug, jobs
+
+    # Last resort: WaaS postings on the public YC profile page.
+    jobs = fetch_waas(session, slug, descriptions=waas_descriptions, delay=delay)
+    _polite_sleep(delay)
+    if jobs:
+        if cache is not None and slug:
+            cache.set(slug, "waas", slug)
+        return "waas", slug, jobs
 
     if cache is not None and slug:
         cache.set(slug, None, None)

@@ -40,6 +40,9 @@ def build_parser():
                    default=True,
                    help="disable the website-scraping fallback used on a slug miss "
                         "(faster, lower coverage)")
+    p.add_argument("--waas-descriptions", action="store_true", default=False,
+                   help="fetch full descriptions for WaaS-fallback jobs "
+                        "(one extra request per job)")
     p.add_argument("--delay", type=float, default=0.25,
                    help="base per-request delay in seconds; jittered (default: 0.25)")
     p.add_argument("--cache", default=".yc_ats_cache.json",
@@ -74,6 +77,7 @@ def main(argv=None):
         max_companies=args.max_companies,
         source=args.source,
         website_detect=args.website_detect,
+        waas_descriptions=args.waas_descriptions,
         delay=args.delay,
         cache_path=args.cache or None,
         progress=not args.quiet,
