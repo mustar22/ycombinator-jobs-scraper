@@ -20,7 +20,7 @@ def build_parser():
         description="Scrape jobs from small early-stage YC startups via public ATS boards.",
     )
     p.add_argument("--max-team-size", type=int, default=50,
-                   help="exclude companies larger than this (default: 50)")
+                   help="exclude companies larger than this (default: 50; 0 = no cap)")
     p.add_argument("--batches", default=None,
                    help="comma-separated batch labels, e.g. 'Winter 2025,Spring 2025' "
                         "(overrides --years-back)")
@@ -69,7 +69,7 @@ def main(argv=None):
     batches = [b for b in (args.batches.split(",") if args.batches else []) if b.strip()]
 
     rows = scrape_yc_jobs(
-        max_team_size=args.max_team_size,
+        max_team_size=args.max_team_size or None,
         batches=batches or None,
         years_back=args.years_back,
         hiring_only=args.hiring_only,

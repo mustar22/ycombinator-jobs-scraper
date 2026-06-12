@@ -55,7 +55,7 @@ Run `yc-jobs --help` for all flags. Key ones:
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--max-team-size` | `50` | drop companies larger than this |
+| `--max-team-size` | `50` | drop companies larger than this; `0` = no cap |
 | `--batches` | _(off)_ | explicit batch labels, comma-separated; overrides `--years-back` |
 | `--years-back` | `3` | keep batches within the last N years |
 | `--hiring-only` / `--no-hiring-only` | on | require `isHiring == true` |

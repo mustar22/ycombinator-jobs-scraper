@@ -58,10 +58,16 @@ def scrape_yc_jobs(
     waas.reset_stats()
     try:
         for i, company in enumerate(companies, 1):
-            resolved = resolve_company(
-                session, company, cache=cache, website_detect=website_detect, delay=delay,
-                waas_descriptions=waas_descriptions,
-            )
+            # Backstop: no single company may kill the whole scrape.
+            try:
+                resolved = resolve_company(
+                    session, company, cache=cache, website_detect=website_detect,
+                    delay=delay, waas_descriptions=waas_descriptions,
+                )
+            except Exception as e:
+                resolved = None
+                print(f"WARNING: resolve failed for {company.get('name')} ({e}); skipped",
+                      file=sys.stderr)
             if not resolved:
                 if progress:
                     print(f"  [{i}/{len(companies)}] miss  {company.get('name')}")

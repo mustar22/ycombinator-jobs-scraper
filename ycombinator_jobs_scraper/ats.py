@@ -1,5 +1,6 @@
 """Resolve each company's public ATS and pull its jobs (Greenhouse/Lever/Ashby)."""
 import re
+import sys
 import time
 from random import uniform
 from urllib.parse import urljoin
@@ -162,10 +163,15 @@ def resolve_company(session, company, cache=None, website_detect=True, delay=0.2
     cached = cache.get(slug) if cache is not None and slug else None
     if cached is not None and cached.get("ats"):
         ats, ats_slug = cached["ats"], cached["ats_slug"]
-        if ats == "waas":
-            jobs = fetch_waas(session, ats_slug, descriptions=waas_descriptions, delay=delay)
-        else:
-            jobs = dict(_FETCHERS)[ats](session, ats_slug)
+        try:
+            if ats == "waas":
+                jobs = fetch_waas(session, ats_slug, descriptions=waas_descriptions, delay=delay)
+            else:
+                jobs = dict(_FETCHERS)[ats](session, ats_slug)
+        except Exception as e:
+            jobs = None
+            print(f"WARNING: cached {ats} fetch failed for {company.get('name')} ({e}); "
+                  "re-probing", file=sys.stderr)
         _polite_sleep(delay)
         if jobs:
             return ats, ats_slug, jobs
